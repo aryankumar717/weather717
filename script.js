@@ -22,14 +22,17 @@ class WeatherDashboard {
     if (!city) return;
 
     try {
+      this.setStatus("", "");
       this.showWeather(false);
       this.setStatus("Loading...", "loading");
 
       const geo = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
       ).then(r => r.json());
 
-      if (!geo.results) throw new Error("City not found");
+      if (!geo.results || geo.results.length === 0) {
+        throw new Error("City not found");
+      }
 
       const { latitude, longitude, name, country } = geo.results[0];
       const weather = await this.fetchWeather(latitude, longitude);
@@ -55,16 +58,24 @@ class WeatherDashboard {
   }
 
   async location() {
+    this.setStatus("", "");
+    this.showWeather(false);
+
+    if (!navigator.geolocation) {
+      this.setStatus("Geolocation not supported", "error");
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         try {
-          this.showWeather(false);
           this.setStatus("Detecting location...", "loading");
 
           const name = await this.reverseGeocode(
             coords.latitude,
             coords.longitude
           );
+
           const weather = await this.fetchWeather(
             coords.latitude,
             coords.longitude
@@ -82,7 +93,7 @@ class WeatherDashboard {
   render(title, data) {
     const c = data.current;
 
-    this.setStatus("");
+    this.setStatus("", "");
     this.showWeather(true);
 
     document.getElementById("city-name").textContent = title;
