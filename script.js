@@ -1,84 +1,87 @@
-// 🔐 Keep placeholder for GitHub
-const API_KEY = "YOUR_API_KEY";
+class WeatherDashboard {
+  constructor() {
+    this.statusBox = document.getElementById("message");
+    this.container = document.getElementById("weather-display");
+    this.inputField = document.getElementById("city-input");
+    
+    this.setup();
+  }
 
-const messageEl = document.getElementById("message");
-const weatherDisplay = document.getElementById("weather-display");
+  setup() {
+    document.getElementById("search-btn").addEventListener("click", () => this.executeSearch());
+    document.getElementById("location-btn").addEventListener("click", () => this.syncLocation());
+  }
 
-function setMessage(msg, type = "") {
-  messageEl.textContent = msg;
-  messageEl.className = "message " + type;
-}
+  updateDisplayState(msg, type = "info") {
+    this.statusBox.textContent = msg;
+    this.statusBox.className = `status-msg type-${type}`;
+  }
 
-function clearWeather() {
-  weatherDisplay.style.display = "none";
-  setMessage("");
-}
+  async executeSearch() {
+    const val = this.inputField.value.trim();
+    if (!val) return;
 
-async function fetchWeather(url) {
-  try {
-    setMessage("Loading...", "loading");
+    try {
+      this.toggle(false);
+      this.updateDisplayState("Fetching...", "loading");
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch weather");
+      const gRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1`);
+      const gData = await gRes.json();
 
-    const data = await res.json();
-    updateUI(data);
-  } catch (err) {
-    setMessage(err.message, "error");
+      if (!gData.results?.length) throw new Error("Unknown Location");
+
+      const { latitude, longitude, name } = gData.results[0];
+      const wData = await this.pull(latitude, longitude);
+      
+      this.render(name, wData);
+    } catch (e) {
+      this.updateDisplayState(e.message, "error");
+    }
+  }
+
+  async pull(lat, lon) {
+    const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
+    const r = await fetch(api);
+    return r.json();
+  }
+
+  async syncLocation() {
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        this.updateDisplayState("Locating...", "loading");
+        const d = await this.pull(coords.latitude, coords.longitude);
+        this.render("Local Area", d);
+      },
+      () => this.updateDisplayState("Access Denied", "error")
+    );
+  }
+
+  toggle(isVisible) {
+    this.container.style.display = isVisible ? "block" : "none";
+    if (!isVisible) this.statusBox.textContent = "";
+  }
+
+  render(label, data) {
+    const { current } = data;
+    this.updateDisplayState("");
+
+    const uiMap = {
+      "city-name": label,
+      "temperature": `${current.temperature_2m}°C`,
+      "humidity": `${current.relative_humidity_2m}%`,
+      "wind-speed": `${current.wind_speed_10m} km/h`,
+      "description": "Current Conditions",
+      "feels-like": "N/A",
+      "pressure": "N/A"
+    };
+
+    for (const [id, value] of Object.entries(uiMap)) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    this.toggle(true);
   }
 }
 
-function fetchByCity(city) {
-  if (API_KEY === "YOUR_API_KEY") {
-    setMessage("Add your API key to run this project", "error");
-    return;
-  }
-
-  fetchWeather(
-    `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}`
-  );
-}
-
-function fetchByCoords(lat, lon) {
-  if (API_KEY === "YOUR_API_KEY") {
-    setMessage("Add your API key to run this project", "error");
-    return;
-  }
-
-  fetchWeather(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-  );
-}
-
-function updateUI(data) {
-  setMessage("");
-  document.getElementById("city-name").textContent = data.name;
-  document.getElementById("temperature").textContent =
-    Math.round(data.main.temp) + "°C";
-  document.getElementById("description").textContent =
-    data.weather[0].description;
-  document.getElementById(
-    "weather-icon"
-  ).src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-
-  document.getElementById("feels-like").textContent =
-    Math.round(data.main.feels_like) + "°C";
-  document.getElementById("humidity").textContent = data.main.humidity + "%";
-  document.getElementById("wind-speed").textContent = data.wind.speed + " m/s";
-  document.getElementById("pressure").textContent = data.main.pressure + " hPa";
-
-  weatherDisplay.style.display = "block";
-}
-
-document.getElementById("search-btn").onclick = () => {
-  const city = document.getElementById("city-input").value.trim();
-  if (city) fetchByCity(city);
-};
-
-document.getElementById("location-btn").onclick = () => {
-  clearWeather();
-  navigator.geolocation.getCurrentPosition(
-    (pos) => fetchByCoords(pos.coords.latitude, pos.coords.longitude),
-    () => setMessage("Location access denied", "error")
-  );
-};
+const WeatherApp = new WeatherDashboard();
