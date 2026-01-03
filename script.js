@@ -3,81 +3,109 @@ class WeatherDashboard {
     this.statusBox = document.getElementById("message");
     this.container = document.getElementById("weather-display");
     this.inputField = document.getElementById("city-input");
-    
     this.setup();
   }
 
   setup() {
-    document.getElementById("search-btn").addEventListener("click", () => this.executeSearch());
-    document.getElementById("location-btn").addEventListener("click", () => this.syncLocation());
+    document
+      .getElementById("search-btn")
+      .addEventListener("click", () => this.executeSearch());
+    document
+      .getElementById("location-btn")
+      .addEventListener("click", () => this.syncLocation());
   }
 
-  updateDisplayState(msg, type = "info") {
+  updateDisplayState(msg = "", type = "") {
     this.statusBox.textContent = msg;
-    this.statusBox.className = `status-msg type-${type}`;
+    this.statusBox.className = `message ${type}`;
+  }
+
+  toggle(show) {
+    this.container.style.display = show ? "block" : "none";
+    if (!show) this.statusBox.textContent = "";
   }
 
   async executeSearch() {
-    const val = this.inputField.value.trim();
-    if (!val) return;
+    const city = this.inputField.value.trim();
+    if (!city) return;
 
     try {
       this.toggle(false);
-      this.updateDisplayState("Fetching...", "loading");
+      this.updateDisplayState("Fetching weather...", "loading");
 
-      const gRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1`);
-      const gData = await gRes.json();
+      const geoRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`
+      );
+      const geoData = await geoRes.json();
 
-      if (!gData.results?.length) throw new Error("Unknown Location");
+      if (!geoData.results?.length) {
+        throw new Error("City not found");
+      }
 
-      const { latitude, longitude, name } = gData.results[0];
-      const wData = await this.pull(latitude, longitude);
-      
-      this.render(name, wData);
-    } catch (e) {
-      this.updateDisplayState(e.message, "error");
+      const { latitude, longitude, name } = geoData.results[0];
+      const weatherData = await this.fetchWeather(latitude, longitude);
+      this.render(name, weatherData);
+    } catch (err) {
+      this.updateDisplayState(err.message, "error");
     }
   }
 
-  async pull(lat, lon) {
-    const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
-    const r = await fetch(api);
-    return r.json();
+  async fetchWeather(lat, lon) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  async reverseGeocode(lat, lon) {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1`
+    );
+    const data = await res.json();
+    return data.results?.[0]?.name || "Your Location";
   }
 
   async syncLocation() {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        this.updateDisplayState("Locating...", "loading");
-        const d = await this.pull(coords.latitude, coords.longitude);
-        this.render("Local Area", d);
+        try {
+          this.toggle(false);
+          this.updateDisplayState("Detecting location...", "loading");
+
+          const cityName = await this.reverseGeocode(
+            coords.latitude,
+            coords.longitude
+          );
+          const weatherData = await this.fetchWeather(
+            coords.latitude,
+            coords.longitude
+          );
+          this.render(cityName, weatherData);
+        } catch {
+          this.updateDisplayState("Failed to fetch location weather", "error");
+        }
       },
-      () => this.updateDisplayState("Access Denied", "error")
+      () => this.updateDisplayState("Location access denied", "error")
     );
   }
 
-  toggle(isVisible) {
-    this.container.style.display = isVisible ? "block" : "none";
-    if (!isVisible) this.statusBox.textContent = "";
-  }
-
-  render(label, data) {
+  render(city, data) {
     const { current } = data;
+
     this.updateDisplayState("");
 
-    const uiMap = {
-      "city-name": label,
+    const map = {
+      "city-name": city,
       "temperature": `${current.temperature_2m}°C`,
+      "description": "Current Weather",
       "humidity": `${current.relative_humidity_2m}%`,
       "wind-speed": `${current.wind_speed_10m} km/h`,
-      "description": "Current Conditions",
-      "feels-like": "N/A",
-      "pressure": "N/A"
+      "feels-like": "—",
+      "pressure": "—"
     };
 
-    for (const [id, value] of Object.entries(uiMap)) {
+    for (const id in map) {
       const el = document.getElementById(id);
-      if (el) el.textContent = value;
+      if (el) el.textContent = map[id];
     }
 
     this.toggle(true);
