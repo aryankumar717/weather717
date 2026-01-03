@@ -1,42 +1,69 @@
 # 🌤 Weather App
 
 A modern, responsive weather application built using **HTML, CSS, and JavaScript**.  
-It provides real-time weather information for any city using the **OpenWeather API**, with support for **current location weather**.
+It provides **real-time weather information for any city worldwide** and supports **current location weather** using a **keyless public API**.
 
 ---
 
 ## ✨ Features
 
-- 🔍 Search weather by city name
+- 🔍 Search weather by city name (global support)
 - 📍 Get weather using current location (Geolocation API)
-- 🌡 Displays temperature, feels-like temperature
-- 💧 Humidity, 🌬 wind speed, 🧭 pressure
-- 🎨 Clean, modern UI with responsive design
-- ⚠️ Proper error handling (invalid city, no API key, location denied)
+- 🌡 Displays current temperature
+- 💧 Humidity & 🌬 wind speed
+- 🎨 Clean, modern, responsive UI
+- ⚠️ Proper error handling (invalid city, location denied)
+- 🔐 No API key required
 
 ---
 
 ## 🛠 Tech Stack
 
 - **HTML5**
-- **CSS3** (Modern UI styling)
+- **CSS3**
 - **JavaScript (ES6+)**
-- **OpenWeather API**
+- **Open-Meteo API (Keyless)**
 
 ---
 
-## 🔑 API Key Setup (Important)
+## 🌍 Weather Data Source
 
-This project uses the **OpenWeather API**.
+This project uses the **Open-Meteo API**, which:
 
-For **security reasons**, the API key is **not included** in this repository.
+- ✅ Requires no signup
+- ✅ Requires no API key
+- ✅ Is safe for public GitHub repositories
+- ✅ Works instantly for anyone testing the project
 
-### How to run locally:
+This makes the application ideal for **frontend-only deployment** (GitHub Pages).
 
-1. Go to 👉 https://openweathermap.org/
-2. Sign up / log in
-3. Generate a **free API key**
-4. Open `script.js`
-5. Replace:
-   ```js
-   const API_KEY = "YOUR_API_KEY";
+---
+
+## ▶️ How to Run
+
+1. Clone or download the repository  
+2. Open `index.html` in your browser  
+   **OR**
+3. Visit the live GitHub Pages link  
+
+No configuration needed.
+
+---
+
+## 💡 Why Open-Meteo?
+
+> This project intentionally uses a keyless weather API so recruiters and users can test it instantly without exposing sensitive credentials.
+
+---
+
+## 📌 Notes
+
+- Works globally for cities and locations
+- Uses browser geolocation for “My Location”
+- Designed for public deployment
+
+---
+
+## 👨‍💻 Author
+
+**Aryan Kumar**
