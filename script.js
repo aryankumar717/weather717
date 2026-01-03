@@ -1,115 +1,98 @@
 class WeatherDashboard {
   constructor() {
-    this.statusBox = document.getElementById("message");
-    this.container = document.getElementById("weather-display");
-    this.inputField = document.getElementById("city-input");
-    this.setup();
+    this.msg = document.getElementById("message");
+    this.box = document.getElementById("weather-display");
+    this.input = document.getElementById("city-input");
+
+    document.getElementById("search-btn").onclick = () => this.search();
+    document.getElementById("location-btn").onclick = () => this.location();
   }
 
-  setup() {
-    document
-      .getElementById("search-btn")
-      .addEventListener("click", () => this.executeSearch());
-    document
-      .getElementById("location-btn")
-      .addEventListener("click", () => this.syncLocation());
+  setStatus(text = "", type = "") {
+    this.msg.textContent = text;
+    this.msg.className = `message ${type}`;
   }
 
-  updateDisplayState(msg = "", type = "") {
-    this.statusBox.textContent = msg;
-    this.statusBox.className = `message ${type}`;
+  showWeather(show) {
+    this.box.style.display = show ? "block" : "none";
   }
 
-  toggle(show) {
-    this.container.style.display = show ? "block" : "none";
-    if (!show) this.statusBox.textContent = "";
-  }
-
-  async executeSearch() {
-    const city = this.inputField.value.trim();
+  async search() {
+    const city = this.input.value.trim();
     if (!city) return;
 
     try {
-      this.toggle(false);
-      this.updateDisplayState("Fetching weather...", "loading");
+      this.showWeather(false);
+      this.setStatus("Loading...", "loading");
 
-      const geoRes = await fetch(
+      const geo = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`
-      );
-      const geoData = await geoRes.json();
+      ).then(r => r.json());
 
-      if (!geoData.results?.length) {
-        throw new Error("City not found");
-      }
+      if (!geo.results) throw new Error("City not found");
 
-      const { latitude, longitude, name } = geoData.results[0];
-      const weatherData = await this.fetchWeather(latitude, longitude);
-      this.render(name, weatherData);
-    } catch (err) {
-      this.updateDisplayState(err.message, "error");
+      const { latitude, longitude, name, country } = geo.results[0];
+      const weather = await this.fetchWeather(latitude, longitude);
+
+      this.render(`${name}, ${country}`, weather);
+    } catch (e) {
+      this.setStatus(e.message, "error");
     }
   }
 
   async fetchWeather(lat, lon) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
-    const res = await fetch(url);
-    return res.json();
+    return fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`
+    ).then(r => r.json());
   }
 
   async reverseGeocode(lat, lon) {
-    const res = await fetch(
+    const geo = await fetch(
       `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1`
-    );
-    const data = await res.json();
-    return data.results?.[0]?.name || "Your Location";
+    ).then(r => r.json());
+
+    return geo.results?.[0]?.name || "Your Location";
   }
 
-  async syncLocation() {
+  async location() {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         try {
-          this.toggle(false);
-          this.updateDisplayState("Detecting location...", "loading");
+          this.showWeather(false);
+          this.setStatus("Detecting location...", "loading");
 
-          const cityName = await this.reverseGeocode(
+          const name = await this.reverseGeocode(
             coords.latitude,
             coords.longitude
           );
-          const weatherData = await this.fetchWeather(
+          const weather = await this.fetchWeather(
             coords.latitude,
             coords.longitude
           );
-          this.render(cityName, weatherData);
+
+          this.render(name, weather);
         } catch {
-          this.updateDisplayState("Failed to fetch location weather", "error");
+          this.setStatus("Location error", "error");
         }
       },
-      () => this.updateDisplayState("Location access denied", "error")
+      () => this.setStatus("Location denied", "error")
     );
   }
 
-  render(city, data) {
-    const { current } = data;
+  render(title, data) {
+    const c = data.current;
 
-    this.updateDisplayState("");
+    this.setStatus("");
+    this.showWeather(true);
 
-    const map = {
-      "city-name": city,
-      "temperature": `${current.temperature_2m}°C`,
-      "description": "Current Weather",
-      "humidity": `${current.relative_humidity_2m}%`,
-      "wind-speed": `${current.wind_speed_10m} km/h`,
-      "feels-like": "—",
-      "pressure": "—"
-    };
-
-    for (const id in map) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = map[id];
-    }
-
-    this.toggle(true);
+    document.getElementById("city-name").textContent = title;
+    document.getElementById("temperature").textContent = `${c.temperature_2m}°C`;
+    document.getElementById("description").textContent = "Current Weather";
+    document.getElementById("humidity").textContent = `${c.relative_humidity_2m}%`;
+    document.getElementById("wind-speed").textContent = `${c.wind_speed_10m} km/h`;
+    document.getElementById("feels-like").textContent = "—";
+    document.getElementById("pressure").textContent = "—";
   }
 }
 
-const WeatherApp = new WeatherDashboard();
+new WeatherDashboard();
